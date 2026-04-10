@@ -4,6 +4,8 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/public-sans";
 
+/* --preset b2dIb2I1cR */
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
