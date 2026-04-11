@@ -16,7 +16,7 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Kimmit | GitHub Commit to Structured Metadata & Social Content",
+        title: "Kimmit",
       },
       {
         name: "description",
@@ -30,7 +30,7 @@ export const Route = createRootRoute({
       },
       {
         property: "og:title",
-        content: "Kimmit | GitHub Commit to Structured Metadata & Social Content",
+        content: "Kimmit",
       },
       {
         property: "og:description",
@@ -47,7 +47,7 @@ export const Route = createRootRoute({
       },
       {
         name: "twitter:title",
-        content: "Kimmit | GitHub Commit to Structured Metadata & Social Content",
+        content: "Kimmit",
       },
       {
         name: "twitter:description",
