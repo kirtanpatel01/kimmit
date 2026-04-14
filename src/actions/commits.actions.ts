@@ -1,59 +1,125 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeaders } from "@tanstack/react-start/server";
+import { and, eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { account } from "@/lib/db/schema";
 
-export const fetchAllCommits = createServerFn({ method: 'GET' }).handler(async () => {
-  const token = process.env.GITHUB_TOKEN!;
-  // For demo purposes, we fetch from the 'kimmit' repo of the authenticated user
-  // We can get the user's login from the /user endpoint first if needed
-  
-  // First, get the authenticated user's login
-  const userRes = await fetch("https://api.github.com/user", {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github+json',
-    },
-  });
-  
-  if (!userRes.ok) return [];
-  const user = await userRes.json();
-  const username = user.login;
+export type GithubRepoSummary = {
+  id: number;
+  name: string;
+  fullName: string;
+  description: string | null;
+  topics: string[];
+};
 
-  // Now fetch commits from a repo (hardcoding 'kimmit' for now as it seems to be the project name)
-  const commitsRes = await fetch(`https://api.github.com/repos/${username}/kimmit/commits`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-  });
+export type GithubCommitSummary = {
+  sha: string;
+  message: string;
+  authorName: string;
+  date: string;
+  url: string;
+};
 
-  if (!commitsRes.ok) {
-     // If 'kimmit' doesn't exist, maybe fetch recent events instead?
-     // For now, let's try the events API to get ALL recent activity
-     const eventsRes = await fetch(`https://api.github.com/users/${username}/events`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/vnd.github+json',
-        },
-     });
-     if (!eventsRes.ok) return [];
-     const events = await eventsRes.json();
-     
-     // Filter for PushEvents and extract commits
-     return events
-       .filter((e: any) => e.type === "PushEvent")
-       .flatMap((e: any) => e.payload.commits.map((c: any) => ({
-         sha: c.sha.substring(0, 7),
-         message: c.message,
-         repo: e.repo.name,
-         date: e.created_at
-       })));
+type GithubRepoApi = {
+  id: number;
+  name: string;
+  full_name: string;
+  description: string | null;
+  topics?: string[];
+};
+
+type GithubCommitApi = {
+  sha: string;
+  html_url: string;
+  commit: {
+    message: string;
+    author: {
+      name: string;
+      date: string;
+    };
+  };
+};
+
+const getGithubAccessTokenForCurrentUser = async () => {
+  const headers = getRequestHeaders();
+  const session = await auth.api.getSession({ headers });
+
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
   }
 
-  const commits = await commitsRes.json();
-  return commits.map((c: any) => ({
-    sha: c.sha.substring(0, 7),
-    message: c.commit.message,
-    repo: `${username}/kimmit`,
-    date: c.commit.author.date
+  const [githubAccount] = await db
+    .select({ accessToken: account.accessToken })
+    .from(account)
+    .where(
+      and(eq(account.userId, session.user.id), eq(account.providerId, "github")),
+    )
+    .limit(1);
+
+  if (!githubAccount?.accessToken) {
+    throw new Error("GitHub account is not connected for this user");
+  }
+
+  return githubAccount.accessToken;
+};
+
+export const fetchUserRepos = createServerFn({ method: "GET" }).handler(async () => {
+  const token = await getGithubAccessTokenForCurrentUser();
+
+  const reposRes = await fetch(
+    "https://api.github.com/user/repos?sort=updated&per_page=100",
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    },
+  );
+
+  if (!reposRes.ok) {
+    return [] as GithubRepoSummary[];
+  }
+
+  const repos = (await reposRes.json()) as GithubRepoApi[];
+
+  return repos.map((repo) => ({
+    id: repo.id,
+    name: repo.name,
+    fullName: repo.full_name,
+    description: repo.description,
+    topics: repo.topics ?? [],
   }));
 });
+
+export const fetchRepoCommits = createServerFn({ method: "POST" })
+  .inputValidator((input: { repoFullName: string }) => input)
+  .handler(async ({ data }) => {
+    const token = await getGithubAccessTokenForCurrentUser();
+
+    const commitsRes = await fetch(
+      `https://api.github.com/repos/${data.repoFullName}/commits?per_page=100`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      },
+    );
+
+    if (!commitsRes.ok) {
+      return [] as GithubCommitSummary[];
+    }
+
+    const commits = (await commitsRes.json()) as GithubCommitApi[];
+
+    return commits.map((commit) => ({
+      sha: commit.sha,
+      message: commit.commit.message,
+      authorName: commit.commit.author.name,
+      date: commit.commit.author.date,
+      url: commit.html_url,
+    }));
+  });
