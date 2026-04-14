@@ -41,6 +41,7 @@ export default function RepoCommitsPanel() {
     setCommits,
     cacheRepoCommits,
     cacheRecentCommits,
+    setPostContext,
     clearCommitSelection,
     toggleCommitSelection,
   } = useCommitSelectionStore();
@@ -66,6 +67,27 @@ export default function RepoCommitsPanel() {
       customEndDate: recentMode === "day" ? customEndDate : null,
     });
   }, [countPreset, customCount, customEndDate, customStartDate, dayPreset, recentMode]);
+
+  useEffect(() => {
+    setPostContext({
+      activeTab,
+      recentMode,
+      countPreset,
+      customCount,
+      dayPreset,
+      customStartDate,
+      customEndDate,
+    });
+  }, [
+    activeTab,
+    recentMode,
+    countPreset,
+    customCount,
+    dayPreset,
+    customStartDate,
+    customEndDate,
+    setPostContext,
+  ]);
 
   useEffect(() => {
     if (repos.length > 0) {

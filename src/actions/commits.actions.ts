@@ -24,13 +24,11 @@ export type GithubCommitSummary = {
   repoTags: string[];
 };
 
-type RecentCommitMode = "count" | "day";
+export type RecentCommitMode = "count" | "day";
+export type CountPreset = "5" | "10" | "15" | "custom";
+export type DayPreset = "today" | "yesterday" | "last2days" | "last3days" | "lastWeek" | "custom";
 
-type CountPreset = "5" | "10" | "15" | "custom";
-
-type DayPreset = "today" | "yesterday" | "last2days" | "last3days" | "lastWeek" | "custom";
-
-type FetchRecentCommitsInput = {
+export type FetchRecentCommitsInput = {
   mode: RecentCommitMode;
   countPreset?: CountPreset;
   customCount?: number;
