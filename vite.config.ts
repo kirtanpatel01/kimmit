@@ -7,6 +7,11 @@ import tailwindcss from "@tailwindcss/vite"
 import { nitro } from "nitro/vite"
 
 const config = defineConfig({
+  resolve: {
+    alias: [
+      { find: /^zod$/, replacement: "zod/v4" },
+    ],
+  },
   plugins: [
     // this is the plugin that enables path aliases
     viteTsConfigPaths({
