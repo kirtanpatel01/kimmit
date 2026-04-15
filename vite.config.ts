@@ -18,6 +18,9 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  build: {
+    outDir: ".output",
+  },
 })
 
 export default config
